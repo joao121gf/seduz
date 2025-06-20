@@ -17,7 +17,7 @@
     }
   ],
   "env": {
-    "MERCADO_PAGO_ACCESS_TOKEN": "@mercado_pago_access_token",
-    "NEXT_PUBLIC_BASE_URL": "@next_public_base_url"
+    "MERCADO_PAGO_ACCESS_TOKEN": "APP_USR-2303516479543987-062014-1b953593c2522bfea92a27092a437f59-334838550",
+    "NEXT_PUBLIC_BASE_URL": "https://seduz.vercel.app"
   }
 }

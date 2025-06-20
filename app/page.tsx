@@ -74,7 +74,7 @@ export default function Component() {
       }
 
       // Usar API PHP em vez da API Next.js
-      const pixResponse = await fetch("/api/create-pix.php", {
+      const pixResponse = await fetch("/api/create-pix", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
