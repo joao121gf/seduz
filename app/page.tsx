@@ -80,17 +80,33 @@ export default function Component() {
 
   const handleRealizarPedido = useCallback(async () => {
     console.log("🚀 Iniciando pedido...")
+    console.log("Selected Product:", selectedProduct) // Debug log
+
+    if (!selectedProduct) {
+      console.error("❌ Produto não selecionado!")
+      alert("Erro: Produto não encontrado. Tente novamente.")
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
       const pedidoId = `PED-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
+      // Extrair apenas o valor numérico do preço
+      const priceString = selectedProduct.price.replace("R$ ", "").replace(",", ".")
+      const priceValue = Number.parseFloat(priceString)
+
+      console.log("Price string:", priceString, "Price value:", priceValue) // Debug log
+
       const pixPayload = {
-        amount: selectedProduct.price,
+        amount: priceValue,
         description: `SEDUZ - ${selectedProduct.name}`,
         email: orderData.email,
         pedidoId: pedidoId,
       }
+
+      console.log("PIX Payload:", pixPayload) // Debug log
 
       const pixResponse = await fetch("/api/create-pix", {
         method: "POST",
@@ -99,6 +115,10 @@ export default function Component() {
         },
         body: JSON.stringify(pixPayload),
       })
+
+      if (!pixResponse.ok) {
+        throw new Error(`HTTP error! status: ${pixResponse.status}`)
+      }
 
       const pixResult = await pixResponse.json()
 
@@ -594,7 +614,7 @@ export default function Component() {
       )}
 
       {/* Form Modal */}
-      {showFormModal && (
+      {showFormModal && selectedProduct && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300"
           onClick={closeFormModal}
@@ -605,7 +625,12 @@ export default function Component() {
           >
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-white">Dados para entrega</h3>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Dados para entrega</h3>
+                  <p className="text-sm text-gray-400">
+                    {selectedProduct.name} - {selectedProduct.price}
+                  </p>
+                </div>
                 <button
                   onClick={closeFormModal}
                   className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"

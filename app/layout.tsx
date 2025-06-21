@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Seduz | Prazer com Estilo',
+  description: 'Descubra sensações únicas com produtos selecionados para momentos de prazer e intimidade. Elegância, qualidade e conforto para a sua experiência.',
   generator: 'v0.dev',
 }
 
