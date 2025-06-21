@@ -30,6 +30,9 @@ export default function Component() {
     payment_id: "",
   })
 
+  const [isPolling, setIsPolling] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null)
+
   // Ref para scroll suave
   const produtosRef = useRef<HTMLElement>(null)
 
@@ -39,6 +42,13 @@ export default function Component() {
   }, [])
 
   const openProductModal = useCallback((product: any) => {
+    // Resetar todos os outros modais primeiro
+    setShowFormModal(false)
+    setShowPixModal(false)
+    setIsPolling(false)
+    setPaymentStatus(null)
+
+    // Depois abrir o modal do produto
     setSelectedProduct(product)
     setIsModalOpen(true)
     setTimeout(() => setIsAnimating(true), 10)
@@ -49,6 +59,11 @@ export default function Component() {
     setTimeout(() => {
       setIsModalOpen(false)
       setSelectedProduct(null)
+      // Resetar também os outros modais
+      setShowFormModal(false)
+      setShowPixModal(false)
+      setIsPolling(false)
+      setPaymentStatus(null)
     }, 300)
   }, [])
 
@@ -69,6 +84,18 @@ export default function Component() {
       numeroCasa: "",
       whatsapp: "",
     })
+    // Não resetar outros modais aqui para permitir voltar ao modal do produto
+  }, [])
+
+  const closePixModal = useCallback(() => {
+    setShowPixModal(false)
+    setIsPolling(false)
+    setPaymentStatus(null)
+    setPixData({
+      qr_code: "",
+      qr_code_base64: "",
+      payment_id: "",
+    })
   }, [])
 
   const toggleFaq = useCallback(
@@ -76,6 +103,61 @@ export default function Component() {
       setOpenFaq(openFaq === index ? null : index)
     },
     [openFaq],
+  )
+
+  // Função para verificar status do pagamento
+  const checkPaymentStatus = useCallback(async (paymentId: string) => {
+    try {
+      const response = await fetch(`/api/check-payment?payment_id=${paymentId}`)
+      const result = await response.json()
+
+      if (result.success) {
+        console.log("📊 Status do pagamento:", result.status)
+
+        if (result.is_approved) {
+          setPaymentStatus("approved")
+          setIsPolling(false)
+          alert("🎉 Pagamento aprovado com sucesso!")
+          // Aqui você pode redirecionar ou fazer outras ações
+          setShowPixModal(false)
+          return true
+        } else if (result.status === "cancelled" || result.status === "rejected") {
+          setPaymentStatus(result.status)
+          setIsPolling(false)
+          alert("❌ Pagamento não foi aprovado. Tente novamente.")
+          return true
+        }
+      }
+      return false
+    } catch (error) {
+      console.error("Erro ao verificar pagamento:", error)
+      return false
+    }
+  }, [])
+
+  // Função para iniciar polling
+  const startPolling = useCallback(
+    (paymentId: string) => {
+      setIsPolling(true)
+      setPaymentStatus("pending")
+
+      const pollInterval = setInterval(async () => {
+        const finished = await checkPaymentStatus(paymentId)
+        if (finished) {
+          clearInterval(pollInterval)
+        }
+      }, 3000) // Verifica a cada 3 segundos
+
+      // Para o polling após 10 minutos (PIX expira)
+      setTimeout(() => {
+        clearInterval(pollInterval)
+        setIsPolling(false)
+        if (paymentStatus === "pending") {
+          alert("⏰ Tempo limite para pagamento. Tente novamente.")
+        }
+      }, 600000) // 10 minutos
+    },
+    [checkPaymentStatus, paymentStatus],
   )
 
   const handleRealizarPedido = useCallback(async () => {
@@ -122,7 +204,7 @@ export default function Component() {
 
       const pixResult = await pixResponse.json()
 
-      if (pixResult.success) {
+      if (pixResult.success && pixResult.payment_id) {
         setPixData({
           qr_code: pixResult.qr_code,
           qr_code_base64: pixResult.qr_code_base64,
@@ -131,6 +213,10 @@ export default function Component() {
 
         closeFormModal()
         setShowPixModal(true)
+
+        // Iniciar polling para verificar pagamento
+        startPolling(pixResult.payment_id)
+
         alert("Pedido criado com sucesso! PIX gerado.")
       } else {
         throw new Error(pixResult.error || "Erro desconhecido na API")
@@ -141,7 +227,7 @@ export default function Component() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [selectedProduct, orderData, closeFormModal])
+  }, [selectedProduct, orderData, closeFormModal, startPolling])
 
   // Validação de email otimizada
   const isValidEmail = useCallback((email: string) => {
@@ -733,7 +819,7 @@ export default function Component() {
       {showPixModal && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300"
-          onClick={() => setShowPixModal(false)}
+          onClick={closePixModal}
         >
           <div
             className="mx-4 bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto"
@@ -741,13 +827,25 @@ export default function Component() {
           >
             <div className="p-6 text-center">
               <button
-                onClick={() => setShowPixModal(false)}
+                onClick={closePixModal}
                 className="absolute top-4 right-4 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
               >
                 ×
               </button>
 
               <h2 className="text-2xl font-bold text-white mb-4">Pagamento PIX</h2>
+
+              {isPolling && (
+                <div className="mb-4 p-3 bg-blue-900/50 rounded-lg">
+                  <p className="text-sm text-blue-300 text-center">🔄 Aguardando confirmação do pagamento...</p>
+                </div>
+              )}
+
+              {paymentStatus === "approved" && (
+                <div className="mb-4 p-3 bg-green-900/50 rounded-lg">
+                  <p className="text-sm text-green-300 text-center">✅ Pagamento aprovado com sucesso!</p>
+                </div>
+              )}
 
               {/* QR Code Real do Mercado Pago */}
               {pixData.qr_code_base64 && (
@@ -782,10 +880,7 @@ export default function Component() {
                 >
                   Copiar Código
                 </Button>
-                <Button
-                  onClick={() => setShowPixModal(false)}
-                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
-                >
+                <Button onClick={closePixModal} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white">
                   Fechar
                 </Button>
               </div>
