@@ -32,6 +32,7 @@ export default function Component() {
 
   const [isPolling, setIsPolling] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null)
+  const [submitMessage, setSubmitMessage] = useState<string>("")
 
   // Ref para scroll suave
   const produtosRef = useRef<HTMLElement>(null)
@@ -47,6 +48,7 @@ export default function Component() {
     setShowPixModal(false)
     setIsPolling(false)
     setPaymentStatus(null)
+    setSubmitMessage("")
 
     // Depois abrir o modal do produto
     setSelectedProduct(product)
@@ -70,10 +72,12 @@ export default function Component() {
 
     // Abrir formulário imediatamente
     setShowFormModal(true)
+    setSubmitMessage("") // Limpar mensagens anteriores
   }, [])
 
   const closeFormModal = useCallback(() => {
     setShowFormModal(false)
+    setSubmitMessage("")
     setOrderData({
       nome: "",
       email: "",
@@ -116,14 +120,11 @@ export default function Component() {
         if (result.is_approved) {
           setPaymentStatus("approved")
           setIsPolling(false)
-          alert("🎉 Pagamento aprovado com sucesso!")
-          // Aqui você pode redirecionar ou fazer outras ações
           setShowPixModal(false)
           return true
         } else if (result.status === "cancelled" || result.status === "rejected") {
           setPaymentStatus(result.status)
           setIsPolling(false)
-          alert("❌ Pagamento não foi aprovado. Tente novamente.")
           return true
         }
       }
@@ -152,24 +153,59 @@ export default function Component() {
         clearInterval(pollInterval)
         setIsPolling(false)
         if (paymentStatus === "pending") {
-          alert("⏰ Tempo limite para pagamento. Tente novamente.")
+          setSubmitMessage("⏰ Tempo limite para pagamento expirado")
         }
       }, 600000) // 10 minutos
     },
     [checkPaymentStatus, paymentStatus],
   )
 
+  // Função para enviar email via EmailJS
+  const sendEmailNotification = useCallback(async (orderDetails: any) => {
+    try {
+      // Carregar EmailJS dinamicamente
+      const emailjs = await import("@emailjs/browser")
+
+      const templateParams = {
+        to_name: "SEDUZ Admin",
+        from_name: orderDetails.nome,
+        customer_name: orderDetails.nome,
+        customer_email: orderDetails.email,
+        customer_phone: orderDetails.whatsapp,
+        customer_cpf: orderDetails.cpf,
+        customer_address: `${orderDetails.cep}, ${orderDetails.cidade}/${orderDetails.estado}, Nº ${orderDetails.numeroCasa}`,
+        product_name: orderDetails.produto,
+        product_price: orderDetails.preco,
+        order_id: orderDetails.pedidoId,
+        payment_id: orderDetails.paymentId,
+        message: `Novo pedido recebido!\n\nProduto: ${orderDetails.produto}\nValor: ${orderDetails.preco}\nCliente: ${orderDetails.nome}\nEmail: ${orderDetails.email}\nTelefone: ${orderDetails.whatsapp}`,
+      }
+
+      await emailjs.send(
+        "service_f9wg6sr", // Service ID
+        "template_4ndjjvh", // Template ID
+        templateParams,
+        "hIUp4sWfNrscBt-he", // Public Key
+      )
+
+      console.log("✅ Email enviado com sucesso!")
+      return true
+    } catch (error) {
+      console.error("❌ Erro ao enviar email:", error)
+      return false
+    }
+  }, [])
+
   const handleRealizarPedido = useCallback(async () => {
     console.log("🚀 Iniciando pedido...")
-    console.log("Selected Product:", selectedProduct) // Debug log
 
     if (!selectedProduct) {
-      console.error("❌ Produto não selecionado!")
-      alert("Erro: Produto não encontrado. Tente novamente.")
+      setSubmitMessage("❌ Erro: Produto não encontrado. Tente novamente.")
       return
     }
 
     setIsSubmitting(true)
+    setSubmitMessage("🔄 Processando pedido...")
 
     try {
       const pedidoId = `PED-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -178,8 +214,6 @@ export default function Component() {
       const priceString = selectedProduct.price.replace("R$ ", "").replace(",", ".")
       const priceValue = Number.parseFloat(priceString)
 
-      console.log("Price string:", priceString, "Price value:", priceValue) // Debug log
-
       const pixPayload = {
         amount: priceValue,
         description: `SEDUZ - ${selectedProduct.name}`,
@@ -187,7 +221,7 @@ export default function Component() {
         pedidoId: pedidoId,
       }
 
-      console.log("PIX Payload:", pixPayload) // Debug log
+      console.log("PIX Payload:", pixPayload)
 
       const pixResponse = await fetch("/api/create-pix", {
         method: "POST",
@@ -204,6 +238,25 @@ export default function Component() {
       const pixResult = await pixResponse.json()
 
       if (pixResult.success && pixResult.payment_id) {
+        // Preparar dados para o email
+        const orderDetails = {
+          nome: orderData.nome,
+          email: orderData.email,
+          whatsapp: orderData.whatsapp,
+          cpf: orderData.cpf,
+          cep: orderData.cep,
+          cidade: orderData.cidade,
+          estado: orderData.estado,
+          produto: selectedProduct.name,
+          preco: selectedProduct.price,
+          pedidoId: pedidoId,
+          paymentId: pixResult.payment_id,
+        }
+
+        // Enviar email de notificação
+        setSubmitMessage("📧 Enviando notificação...")
+        await sendEmailNotification(orderDetails)
+
         setPixData({
           qr_code: pixResult.qr_code,
           qr_code_base64: pixResult.qr_code_base64,
@@ -216,17 +269,17 @@ export default function Component() {
         // Iniciar polling para verificar pagamento
         startPolling(pixResult.payment_id)
 
-        alert("Pedido criado com sucesso! PIX gerado.")
+        setSubmitMessage("✅ Pedido criado com sucesso! PIX gerado.")
       } else {
         throw new Error(pixResult.error || "Erro desconhecido na API")
       }
     } catch (error) {
       console.error("❌ Erro:", error)
-      alert(`Erro ao realizar pedido: ${error.message}`)
+      setSubmitMessage(`❌ Erro ao realizar pedido: ${error.message}`)
     } finally {
       setIsSubmitting(false)
     }
-  }, [selectedProduct, orderData, closeFormModal, startPolling])
+  }, [selectedProduct, orderData, closeFormModal, startPolling, sendEmailNotification])
 
   // Validação de email otimizada
   const isValidEmail = useCallback((email: string) => {
@@ -305,7 +358,7 @@ export default function Component() {
         <div className="fundor absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/80"></div>
         <div className="relative text-center space-y-6 z-10">
           <h1 className="text-4xl md:text-6xl font-bold tracking-wider text-red-500 drop-shadow-2xl">SEDUZ</h1>
-          <p className="text-xl md:text-2xl text-gray-300 font-light">Desperte seus sentidos com elegância</p>
+          <p className="text-xl md:text-2xl text-gray-300 font-light">Desperte seus sentidoss com elegância</p>
           <Button
             onClick={scrollToProdutos}
             className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-full text-lg font-medium shadow-lg shadow-red-500/25"
@@ -724,6 +777,21 @@ export default function Component() {
                 </button>
               </div>
 
+              {/* Mensagem de status */}
+              {submitMessage && (
+                <div
+                  className={`mb-4 p-3 rounded-lg text-center text-sm ${
+                    submitMessage.includes("❌")
+                      ? "bg-red-900/50 text-red-300"
+                      : submitMessage.includes("✅")
+                        ? "bg-green-900/50 text-green-300"
+                        : "bg-blue-900/50 text-blue-300"
+                  }`}
+                >
+                  {submitMessage}
+                </div>
+              )}
+
               <div className="space-y-4">
                 <input
                   type="text"
@@ -798,7 +866,7 @@ export default function Component() {
                   disabled={!isFormValid || isSubmitting}
                   className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
-                  {isSubmitting ? "Gerando PIX..." : "Realizar Pedido"}
+                  {isSubmitting ? "Processando..." : "Realizar Pedido"}
                 </Button>
 
                 <Button
