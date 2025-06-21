@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Star, Users, Award, Shield, Headphones, Truck, CreditCard, ChevronDown, ChevronUp } from "lucide-react"
@@ -11,7 +11,7 @@ export default function Component() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
 
-  const [showOrderForm, setShowOrderForm] = useState(false)
+  const [showFormModal, setShowFormModal] = useState(false)
   const [showPixModal, setShowPixModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orderData, setOrderData] = useState({
@@ -30,36 +30,55 @@ export default function Component() {
     payment_id: "",
   })
 
-  const openProductModal = (product: any) => {
+  // Ref para scroll suave
+  const produtosRef = useRef<HTMLElement>(null)
+
+  // Função de scroll otimizada
+  const scrollToProdutos = useCallback(() => {
+    produtosRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [])
+
+  const openProductModal = useCallback((product: any) => {
     setSelectedProduct(product)
     setIsModalOpen(true)
     setTimeout(() => setIsAnimating(true), 10)
-  }
+  }, [])
 
-  const closeProductModal = () => {
+  const closeProductModal = useCallback(() => {
     setIsAnimating(false)
     setTimeout(() => {
       setIsModalOpen(false)
       setSelectedProduct(null)
-      setShowOrderForm(false)
-      setOrderData({
-        nome: "",
-        email: "",
-        cpf: "",
-        cep: "",
-        estado: "",
-        cidade: "",
-        numeroCasa: "",
-        whatsapp: "",
-      })
     }, 300)
-  }
+  }, [])
 
-  const toggleFaq = (index: number) => {
-    setOpenFaq(openFaq === index ? null : index)
-  }
+  const openFormModal = useCallback(() => {
+    setShowFormModal(true)
+    closeProductModal()
+  }, [closeProductModal])
 
-  const handleRealizarPedido = async () => {
+  const closeFormModal = useCallback(() => {
+    setShowFormModal(false)
+    setOrderData({
+      nome: "",
+      email: "",
+      cpf: "",
+      cep: "",
+      estado: "",
+      cidade: "",
+      numeroCasa: "",
+      whatsapp: "",
+    })
+  }, [])
+
+  const toggleFaq = useCallback(
+    (index: number) => {
+      setOpenFaq(openFaq === index ? null : index)
+    },
+    [openFaq],
+  )
+
+  const handleRealizarPedido = useCallback(async () => {
     console.log("🚀 Iniciando pedido...")
     setIsSubmitting(true)
 
@@ -73,7 +92,6 @@ export default function Component() {
         pedidoId: pedidoId,
       }
 
-      // Usar API PHP em vez da API Next.js
       const pixResponse = await fetch("/api/create-pix", {
         method: "POST",
         headers: {
@@ -91,7 +109,7 @@ export default function Component() {
           payment_id: pixResult.payment_id,
         })
 
-        closeProductModal()
+        closeFormModal()
         setShowPixModal(true)
         alert("Pedido criado com sucesso! PIX gerado.")
       } else {
@@ -103,27 +121,90 @@ export default function Component() {
     } finally {
       setIsSubmitting(false)
     }
-  }
+  }, [selectedProduct, orderData, closeFormModal])
 
-  // Adicionar validação de email
-  const isValidEmail = (email: string) => {
+  // Validação de email otimizada
+  const isValidEmail = useCallback((email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
-  }
+  }, [])
 
-  // ... resto do código permanece igual até a parte do formulário ...
+  // Verificar se formulário está válido
+  const isFormValid = useMemo(() => {
+    return (
+      orderData.nome &&
+      orderData.email &&
+      isValidEmail(orderData.email) &&
+      orderData.cpf &&
+      orderData.cep &&
+      orderData.estado &&
+      orderData.cidade &&
+      orderData.numeroCasa &&
+      orderData.whatsapp
+    )
+  }, [orderData, isValidEmail])
+
+  // Produtos memoizados
+  const products = useMemo(
+    () => [
+      {
+        id: 1,
+        name: "Noite Sublime",
+        price: "R$ 59,90",
+        rating: 4.9,
+        reviews: 527,
+        image: "/1.jpg?height=300&width=400",
+        description:
+          "Kit Sensações Intensas – Aproveite o combo especial com lubrificantes beijáveis, plug de aço com cristal e spray dessensibilizante para experiências mais ousadas e prazerosas.",
+        features: [
+          "Devorous Bubbalove Spray",
+          "D4 Lubrificante Íntimo Beijável",
+          "Plug Anal de Aço Inoxidável com Cristal",
+          "LubPro Lubrificante sabor Morango",
+        ],
+      },
+      {
+        id: 2,
+        name: "Mark Prótese Curvada",
+        price: "R$ 62,90",
+        rating: 4.8,
+        reviews: 889,
+        image: "/1pb2.jpg?height=300&width=400",
+        description:
+          "A prótese realística é ideal para quem deseja explorar novas sensações e aproveitar cada momento com mais intensidade durante a penetração.",
+        features: ["Toque macio", "Firme e flexível", "Prazer inesquecível", "Penetrações intensas"],
+      },
+      {
+        id: 3,
+        name: "Conjunto Emily Sem Bojo",
+        price: "R$ 47,90",
+        rating: 4.7,
+        reviews: 756,
+        image: "/lange2.jpg?height=300&width=400",
+        description: "A lingerie Emily é composta por peças que te deixarão ainda mais sexy e ousada.",
+        features: [
+          "Acompanha cinta liga",
+          "Ideal para momentos especiais",
+          "Confeccionado em renda delicada",
+          "Sensualidade marcante",
+        ],
+      },
+    ],
+    [],
+  )
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Todo o conteúdo anterior permanece igual... */}
-
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-red-950/20 to-black">
         <div className="fundor absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/80"></div>
         <div className="relative text-center space-y-6 z-10">
           <h1 className="text-4xl md:text-6xl font-bold tracking-wider text-red-500 drop-shadow-2xl">SEDUZ</h1>
           <p className="text-xl md:text-2xl text-gray-300 font-light">Desperte seus sentidos com elegância</p>
-          <Button className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-full text-lg font-medium shadow-lg shadow-red-500/25">
+          <Button
+            onClick={scrollToProdutos}
+            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-full text-lg font-medium shadow-lg shadow-red-500/25"
+          >
             Explorar produtos
           </Button>
         </div>
@@ -244,62 +325,19 @@ export default function Component() {
       <div className="h-px bg-gradient-to-r from-transparent via-red-500 to-transparent"></div>
 
       {/* Featured Products */}
-      <section className="py-16 md:py-20 bg-gradient-to-b from-black via-red-950/5 to-black relative">
+      <section ref={produtosRef} className="py-16 md:py-20 bg-gradient-to-b from-black via-red-950/5 to-black relative">
         <div className="absolute inset-0 bg-gradient-to-l from-black via-red-950/10 to-black"></div>
         <div className="container mx-auto px-3 md:px-4 max-w-6xl relative z-10">
           <h2 className="text-xl md:text-4xl font-bold text-center text-red-500 mb-6 md:mb-12 drop-shadow-lg">
             Destaques Exclusivos
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                id: 1,
-                name: "Noite Sublime",
-                price: "R$ 59,90",
-                rating: 4.9,
-                reviews: 527,
-                image: "/1.jpg?height=300&width=400",
-                description:
-                  "Kit Sensações Intensas – Aproveite o combo especial com lubrificantes beijáveis, plug de aço com cristal e spray dessensibilizante para experiências mais ousadas e prazerosas.",
-                features: [
-                  "Devorous Bubbalove Spray",
-                  "D4 Lubrificante Íntimo Beijável",
-                  "Plug Anal de Aço Inoxidável com Cristal",
-                  "LubPro Lubrificante sabor Morango",
-                ],
-              },
-              {
-                id: 2,
-                name: "Mark Prótese Curvada",
-                price: "R$ 62,90",
-                rating: 4.8,
-                reviews: 889,
-                image: "/1pb2.jpg?height=300&width=400",
-                description:
-                  "A prótese realística é ideal para quem deseja explorar novas sensações e aproveitar cada momento com mais intensidade durante a penetração.",
-                features: ["Toque macio", "Firme e flexível", "Prazer inesquecível", "Penetrações intensas"],
-              },
-              {
-                id: 3,
-                name: "Conjunto Emily Sem Bojo",
-                price: "R$ 47,90",
-                rating: 4.7,
-                reviews: 756,
-                image: "/lange2.jpg?height=300&width=400",
-                description: "A lingerie Emily é composta por peças que te deixarão ainda mais sexy e ousada.",
-                features: [
-                  "Acompanha cinta liga",
-                  "Ideal para momentos especiais",
-                  "Confeccionado em renda delicada",
-                  "Sensualidade marcante",
-                ],
-              },
-            ].map((product, index) => (
+            {products.map((product, index) => (
               <Card
                 key={index}
                 className="bg-gradient-to-br from-gray-900 to-black border-gray-800 overflow-hidden hover:border-red-500 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20"
               >
-                <div className="h-32 md:h-48 bg-gradient-to-br from-red-900/50 to-red-700/50 relative overflow-hidden">
+                <div className="h-48 md:h-64 bg-gradient-to-br from-red-900/50 to-red-700/50 relative overflow-hidden">
                   <img
                     src={product.image || "/placeholder.svg"}
                     alt={product.name}
@@ -472,7 +510,10 @@ export default function Component() {
           <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
             Descubra um mundo de possibilidades e desperte seus sentidos com nossa coleção exclusiva
           </p>
-          <Button className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-full text-lg font-medium">
+          <Button
+            onClick={scrollToProdutos}
+            className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-full text-lg font-medium"
+          >
             Ver Todos os Produtos
           </Button>
         </div>
@@ -538,107 +579,127 @@ export default function Component() {
                   </div>
 
                   <div className="flex justify-center">
-                    {!showOrderForm ? (
-                      <Button
-                        onClick={() => setShowOrderForm(true)}
-                        className="w-4/5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg shadow-red-500/25"
-                      >
-                        Fazer pedido
-                      </Button>
-                    ) : (
-                      <div className="w-full space-y-4">
-                        <h3 className="text-lg font-semibold text-white mb-4">Dados para entrega:</h3>
-
-                        <div className="space-y-3">
-                          <input
-                            type="text"
-                            placeholder="Nome completo"
-                            value={orderData.nome}
-                            onChange={(e) => setOrderData({ ...orderData, nome: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                          />
-
-                          <input
-                            type="email"
-                            placeholder="E-mail"
-                            value={orderData.email}
-                            onChange={(e) => setOrderData({ ...orderData, email: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                          />
-
-                          <input
-                            type="text"
-                            placeholder="CPF (apenas números)"
-                            value={orderData.cpf}
-                            onChange={(e) => setOrderData({ ...orderData, cpf: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                          />
-
-                          <input
-                            type="text"
-                            placeholder="CEP"
-                            value={orderData.cep}
-                            onChange={(e) => setOrderData({ ...orderData, cep: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                          />
-
-                          <input
-                            type="text"
-                            placeholder="Estado"
-                            value={orderData.estado}
-                            onChange={(e) => setOrderData({ ...orderData, estado: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                          />
-
-                          <input
-                            type="text"
-                            placeholder="Cidade"
-                            value={orderData.cidade}
-                            onChange={(e) => setOrderData({ ...orderData, cidade: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                          />
-
-                          <input
-                            type="text"
-                            placeholder="Número da casa"
-                            value={orderData.numeroCasa}
-                            onChange={(e) => setOrderData({ ...orderData, numeroCasa: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                          />
-
-                          <input
-                            type="text"
-                            placeholder="WhatsApp (com DDD)"
-                            value={orderData.whatsapp}
-                            onChange={(e) => setOrderData({ ...orderData, whatsapp: e.target.value })}
-                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
-                          />
-                        </div>
-
-                        <Button
-                          onClick={handleRealizarPedido}
-                          disabled={
-                            !orderData.nome ||
-                            !orderData.email ||
-                            !isValidEmail(orderData.email) ||
-                            !orderData.cpf ||
-                            !orderData.cep ||
-                            !orderData.estado ||
-                            !orderData.cidade ||
-                            !orderData.numeroCasa ||
-                            !orderData.whatsapp ||
-                            isSubmitting
-                          }
-                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isSubmitting ? "Gerando PIX..." : "Realizar Pedido"}
-                        </Button>
-                      </div>
-                    )}
+                    <Button
+                      onClick={openFormModal}
+                      className="w-4/5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg shadow-red-500/25"
+                    >
+                      Fazer pedido
+                    </Button>
                   </div>
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Form Modal */}
+      {showFormModal && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300"
+          onClick={closeFormModal}
+        >
+          <div
+            className="mx-4 bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-white">Dados para entrega</h3>
+                <button
+                  onClick={closeFormModal}
+                  className="w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Nome completo"
+                  value={orderData.nome}
+                  onChange={(e) => setOrderData({ ...orderData, nome: e.target.value })}
+                  className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500 transition-colors"
+                />
+
+                <input
+                  type="email"
+                  placeholder="E-mail"
+                  value={orderData.email}
+                  onChange={(e) => setOrderData({ ...orderData, email: e.target.value })}
+                  className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500 transition-colors"
+                />
+
+                <input
+                  type="text"
+                  placeholder="CPF (apenas números)"
+                  value={orderData.cpf}
+                  onChange={(e) => setOrderData({ ...orderData, cpf: e.target.value })}
+                  className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500 transition-colors"
+                />
+
+                <input
+                  type="text"
+                  placeholder="CEP"
+                  value={orderData.cep}
+                  onChange={(e) => setOrderData({ ...orderData, cep: e.target.value })}
+                  className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500 transition-colors"
+                />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Estado"
+                    value={orderData.estado}
+                    onChange={(e) => setOrderData({ ...orderData, estado: e.target.value })}
+                    className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500 transition-colors"
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Cidade"
+                    value={orderData.cidade}
+                    onChange={(e) => setOrderData({ ...orderData, cidade: e.target.value })}
+                    className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500 transition-colors"
+                  />
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="Número da casa"
+                  value={orderData.numeroCasa}
+                  onChange={(e) => setOrderData({ ...orderData, numeroCasa: e.target.value })}
+                  className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500 transition-colors"
+                />
+
+                <input
+                  type="text"
+                  placeholder="WhatsApp (com DDD)"
+                  value={orderData.whatsapp}
+                  onChange={(e) => setOrderData({ ...orderData, whatsapp: e.target.value })}
+                  className="w-full px-3 py-3 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-red-500 transition-colors"
+                />
+              </div>
+
+              <div className="mt-6 space-y-3">
+                <Button
+                  onClick={handleRealizarPedido}
+                  disabled={!isFormValid || isSubmitting}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isSubmitting ? "Gerando PIX..." : "Realizar Pedido"}
+                </Button>
+
+                <Button
+                  onClick={closeFormModal}
+                  variant="outline"
+                  className="w-full border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
