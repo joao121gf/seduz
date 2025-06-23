@@ -246,14 +246,7 @@ export default function Component() {
       }
 
       // 1. PRIMEIRO: Enviar email de notificação
-      // Removido conforme atualização
-      // setSubmitMessage("📧 Enviando dados do pedido...")
-      // const emailSuccess = await sendEmailNotification(orderDetails)
-
-      // if (!emailSuccess) {
-      //   setSubmitMessage("⚠️ Aviso: Email não foi enviado, mas continuando com o pedido...")
-      //   // Continuar mesmo se o email falhar
-      // }
+      await sendEmailNotification(orderDetails)
 
       // 2. SEGUNDO: Gerar PIX
       setSubmitMessage("💳 Gerando PIX...")
@@ -286,17 +279,6 @@ export default function Component() {
       const pixResult = await pixResponse.json()
 
       if (pixResult.success && pixResult.payment_id) {
-        // 3. TERCEIRO: Enviar email com ID do pagamento (opcional)
-        // Removido conforme atualização
-        // if (emailSuccess) {
-        //   orderDetails.paymentId = pixResult.payment_id
-        //   await sendEmailNotification({
-        //     ...orderDetails,
-        //     message:
-        //       orderDetails.message + `\n\n✅ PIX gerado com sucesso!\n💳 ID do Pagamento: ${pixResult.payment_id}`,
-        //   })
-        // }
-
         setPixData({
           qr_code: pixResult.qr_code,
           qr_code_base64: pixResult.qr_code_base64,
@@ -375,7 +357,7 @@ export default function Component() {
       {
         id: 3,
         name: "Conjunto Emily Sem Bojo",
-        price: "R$ 0,21",
+        price: "R$ 47,90",
         rating: 4.7,
         reviews: 756,
         image: "/lange2.jpg?height=300&width=400",
@@ -398,7 +380,7 @@ export default function Component() {
         <div className="fundor absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/80"></div>
         <div className="relative text-center space-y-6 z-10">
           <h1 className="text-4xl md:text-6xl font-bold tracking-wider text-red-500 drop-shadow-2xl">SEDUZ</h1>
-          <p className="text-xl md:text-2xl text-gray-300 font-light">Desperte seus sentidos com elegânciass</p>
+          <p className="text-xl md:text-2xl text-gray-300 font-light">Desperte seus sentidos com elegância</p>
           <Button
             onClick={scrollToProdutos}
             className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-full text-lg font-medium shadow-lg shadow-red-500/25"
@@ -1091,4 +1073,3 @@ export default function Component() {
     </div>
   )
 }
-</div>
