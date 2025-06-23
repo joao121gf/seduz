@@ -1,9 +1,22 @@
 "use client"
 
-import { useState, useRef, useCallback, useMemo } from "react"
+import { useState, useRef, useCallback, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Star, Users, Award, Shield, Headphones, Truck, CreditCard, ChevronDown, ChevronUp } from "lucide-react"
+import {
+  Star,
+  Users,
+  Award,
+  Shield,
+  Headphones,
+  Truck,
+  CreditCard,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  XCircle,
+} from "lucide-react"
+import emailjs from "@emailjs/browser"
 
 export default function Component() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
@@ -33,9 +46,15 @@ export default function Component() {
   const [isPolling, setIsPolling] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null)
   const [submitMessage, setSubmitMessage] = useState<string>("")
+  const [emailSent, setEmailSent] = useState(false)
 
   // Ref para scroll suave
   const produtosRef = useRef<HTMLElement>(null)
+
+  // Inicializar EmailJS
+  useEffect(() => {
+    emailjs.init("hIUp4sWfNrscBt-he") // Public Key
+  }, [])
 
   // Função de scroll otimizada
   const scrollToProdutos = useCallback(() => {
@@ -49,6 +68,7 @@ export default function Component() {
     setIsPolling(false)
     setPaymentStatus(null)
     setSubmitMessage("")
+    setEmailSent(false)
 
     // Depois abrir o modal do produto
     setSelectedProduct(product)
@@ -64,7 +84,6 @@ export default function Component() {
     }, 300)
   }, [])
 
-  // CORREÇÃO: Nova função que não interfere com outros modais
   const openFormModal = useCallback(() => {
     // Fechar modal do produto imediatamente sem setTimeout
     setIsAnimating(false)
@@ -72,12 +91,14 @@ export default function Component() {
 
     // Abrir formulário imediatamente
     setShowFormModal(true)
-    setSubmitMessage("") // Limpar mensagens anteriores
+    setSubmitMessage("")
+    setEmailSent(false)
   }, [])
 
   const closeFormModal = useCallback(() => {
     setShowFormModal(false)
     setSubmitMessage("")
+    setEmailSent(false)
     setOrderData({
       nome: "",
       email: "",
@@ -120,7 +141,7 @@ export default function Component() {
         if (result.is_approved) {
           setPaymentStatus("approved")
           setIsPolling(false)
-          setShowPixModal(false)
+          // Não fechar o modal automaticamente, deixar o usuário ver a confirmação
           return true
         } else if (result.status === "cancelled" || result.status === "rejected") {
           setPaymentStatus(result.status)
@@ -153,7 +174,7 @@ export default function Component() {
         clearInterval(pollInterval)
         setIsPolling(false)
         if (paymentStatus === "pending") {
-          setSubmitMessage("⏰ Tempo limite para pagamento expirado")
+          setPaymentStatus("expired")
         }
       }, 600000) // 10 minutos
     },
@@ -163,8 +184,7 @@ export default function Component() {
   // Função para enviar email via EmailJS
   const sendEmailNotification = useCallback(async (orderDetails: any) => {
     try {
-      // Carregar EmailJS dinamicamente
-      const emailjs = await import("@emailjs/browser")
+      console.log("📧 Enviando email com EmailJS...")
 
       const templateParams = {
         to_name: "SEDUZ Admin",
@@ -173,22 +193,43 @@ export default function Component() {
         customer_email: orderDetails.email,
         customer_phone: orderDetails.whatsapp,
         customer_cpf: orderDetails.cpf,
-        customer_address: `${orderDetails.cep}, ${orderDetails.cidade}/${orderDetails.estado}, Nº ${orderDetails.numeroCasa}`,
+        customer_address: `CEP: ${orderDetails.cep}, ${orderDetails.cidade}/${orderDetails.estado}, Nº ${orderDetails.numeroCasa}`,
         product_name: orderDetails.produto,
         product_price: orderDetails.preco,
         order_id: orderDetails.pedidoId,
-        payment_id: orderDetails.paymentId,
-        message: `Novo pedido recebido!\n\nProduto: ${orderDetails.produto}\nValor: ${orderDetails.preco}\nCliente: ${orderDetails.nome}\nEmail: ${orderDetails.email}\nTelefone: ${orderDetails.whatsapp}`,
+        payment_id: orderDetails.paymentId || "Aguardando pagamento",
+        message: `🛒 NOVO PEDIDO RECEBIDO!
+
+📦 Produto: ${orderDetails.produto}
+💰 Valor: ${orderDetails.preco}
+
+👤 DADOS DO CLIENTE:
+Nome: ${orderDetails.nome}
+Email: ${orderDetails.email}
+WhatsApp: ${orderDetails.whatsapp}
+CPF: ${orderDetails.cpf}
+
+📍 ENDEREÇO DE ENTREGA:
+CEP: ${orderDetails.cep}
+Cidade: ${orderDetails.cidade}/${orderDetails.estado}
+Número: ${orderDetails.numeroCasa}
+
+🔢 ID do Pedido: ${orderDetails.pedidoId}
+💳 ID do Pagamento: ${orderDetails.paymentId || "Aguardando pagamento"}
+
+Status: Aguardando confirmação do pagamento PIX`,
       }
 
-      await emailjs.send(
+      console.log("📋 Template params:", templateParams)
+
+      const result = await emailjs.send(
         "service_f9wg6sr", // Service ID
         "template_4ndjjvh", // Template ID
         templateParams,
-        "hIUp4sWfNrscBt-he", // Public Key
       )
 
-      console.log("✅ Email enviado com sucesso!")
+      console.log("✅ Email enviado com sucesso!", result)
+      setEmailSent(true)
       return true
     } catch (error) {
       console.error("❌ Erro ao enviar email:", error)
@@ -209,6 +250,33 @@ export default function Component() {
 
     try {
       const pedidoId = `PED-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+      // Preparar dados para o email ANTES de gerar o PIX
+      const orderDetails = {
+        nome: orderData.nome,
+        email: orderData.email,
+        whatsapp: orderData.whatsapp,
+        cpf: orderData.cpf,
+        cep: orderData.cep,
+        cidade: orderData.cidade,
+        estado: orderData.estado,
+        produto: selectedProduct.name,
+        preco: selectedProduct.price,
+        pedidoId: pedidoId,
+        paymentId: null, // Será preenchido depois
+      }
+
+      // 1. PRIMEIRO: Enviar email de notificação
+      setSubmitMessage("📧 Enviando dados do pedido...")
+      const emailSuccess = await sendEmailNotification(orderDetails)
+
+      if (!emailSuccess) {
+        setSubmitMessage("⚠️ Aviso: Email não foi enviado, mas continuando com o pedido...")
+        // Continuar mesmo se o email falhar
+      }
+
+      // 2. SEGUNDO: Gerar PIX
+      setSubmitMessage("💳 Gerando PIX...")
 
       // Extrair apenas o valor numérico do preço
       const priceString = selectedProduct.price.replace("R$ ", "").replace(",", ".")
@@ -238,24 +306,15 @@ export default function Component() {
       const pixResult = await pixResponse.json()
 
       if (pixResult.success && pixResult.payment_id) {
-        // Preparar dados para o email
-        const orderDetails = {
-          nome: orderData.nome,
-          email: orderData.email,
-          whatsapp: orderData.whatsapp,
-          cpf: orderData.cpf,
-          cep: orderData.cep,
-          cidade: orderData.cidade,
-          estado: orderData.estado,
-          produto: selectedProduct.name,
-          preco: selectedProduct.price,
-          pedidoId: pedidoId,
-          paymentId: pixResult.payment_id,
+        // 3. TERCEIRO: Enviar email com ID do pagamento (opcional)
+        if (emailSuccess) {
+          orderDetails.paymentId = pixResult.payment_id
+          await sendEmailNotification({
+            ...orderDetails,
+            message:
+              orderDetails.message + `\n\n✅ PIX gerado com sucesso!\n💳 ID do Pagamento: ${pixResult.payment_id}`,
+          })
         }
-
-        // Enviar email de notificação
-        setSubmitMessage("📧 Enviando notificação...")
-        await sendEmailNotification(orderDetails)
 
         setPixData({
           qr_code: pixResult.qr_code,
@@ -308,7 +367,7 @@ export default function Component() {
       {
         id: 1,
         name: "Noite Sublime",
-        price: "R$ 59,90",
+        price: "R$ 0,20",
         rating: 4.9,
         reviews: 527,
         image: "/1.jpg?height=300&width=400",
@@ -358,7 +417,7 @@ export default function Component() {
         <div className="fundor absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/80"></div>
         <div className="relative text-center space-y-6 z-10">
           <h1 className="text-4xl md:text-6xl font-bold tracking-wider text-red-500 drop-shadow-2xl">SEDUZ</h1>
-          <p className="text-xl md:text-2xl text-gray-300 font-light">Desperte seus sentidoss com elegância</p>
+          <p className="text-xl md:text-2xl text-gray-300 font-light">Desperte seus sentidos com elegância</p>
           <Button
             onClick={scrollToProdutos}
             className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-full text-lg font-medium shadow-lg shadow-red-500/25"
@@ -792,6 +851,16 @@ export default function Component() {
                 </div>
               )}
 
+              {/* Indicador de email enviado */}
+              {emailSent && (
+                <div className="mb-4 p-3 bg-green-900/50 rounded-lg text-center">
+                  <div className="flex items-center justify-center gap-2 text-green-300">
+                    <CheckCircle className="w-4 h-4" />
+                    <span className="text-sm">Email enviado com sucesso!</span>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <input
                   type="text"
@@ -902,20 +971,57 @@ export default function Component() {
 
               <h2 className="text-2xl font-bold text-white mb-4">Pagamento PIX</h2>
 
-              {isPolling && (
-                <div className="mb-4 p-3 bg-blue-900/50 rounded-lg">
-                  <p className="text-sm text-blue-300 text-center">🔄 Aguardando confirmação do pagamento...</p>
-                </div>
-              )}
-
+              {/* Status do Pagamento - MELHORADO */}
               {paymentStatus === "approved" && (
-                <div className="mb-4 p-3 bg-green-900/50 rounded-lg">
-                  <p className="text-sm text-green-300 text-center">✅ Pagamento aprovado com sucesso!</p>
+                <div className="mb-6 p-4 bg-green-900/50 border border-green-500 rounded-lg">
+                  <div className="flex items-center justify-center gap-3 mb-3">
+                    <CheckCircle className="w-8 h-8 text-green-400" />
+                    <div>
+                      <h3 className="text-lg font-bold text-green-300">Pagamento Aprovado!</h3>
+                      <p className="text-sm text-green-400">Seu pedido foi confirmado com sucesso</p>
+                    </div>
+                  </div>
+                  <div className="bg-green-800/30 p-3 rounded-lg">
+                    <p className="text-xs text-green-300">
+                      ✅ Pagamento processado
+                      <br />📦 Pedido em preparação
+                      <br />📧 Confirmação enviada por email
+                    </p>
+                  </div>
                 </div>
               )}
 
-              {/* QR Code Real do Mercado Pago */}
-              {pixData.qr_code_base64 && (
+              {paymentStatus === "rejected" && (
+                <div className="mb-4 p-3 bg-red-900/50 border border-red-500 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-red-300">
+                    <XCircle className="w-5 h-5" />
+                    <span className="text-sm font-semibold">Pagamento Rejeitado</span>
+                  </div>
+                  <p className="text-xs text-red-400 mt-1">Tente novamente ou use outro método</p>
+                </div>
+              )}
+
+              {paymentStatus === "expired" && (
+                <div className="mb-4 p-3 bg-yellow-900/50 border border-yellow-500 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-yellow-300">
+                    <XCircle className="w-5 h-5" />
+                    <span className="text-sm font-semibold">PIX Expirado</span>
+                  </div>
+                  <p className="text-xs text-yellow-400 mt-1">Tempo limite atingido. Gere um novo PIX</p>
+                </div>
+              )}
+
+              {isPolling && paymentStatus !== "approved" && (
+                <div className="mb-4 p-3 bg-blue-900/50 border border-blue-500 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-blue-300">
+                    <div className="animate-spin w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full"></div>
+                    <span className="text-sm">Aguardando confirmação do pagamento...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* QR Code - só mostrar se não foi aprovado */}
+              {paymentStatus !== "approved" && pixData.qr_code_base64 && (
                 <div className="bg-white p-4 rounded-lg mb-4">
                   <img
                     src={`data:image/png;base64,${pixData.qr_code_base64}`}
@@ -925,15 +1031,17 @@ export default function Component() {
                 </div>
               )}
 
-              <div className="text-white mb-4">
-                <p className="text-lg font-semibold mb-2">Valor: {selectedProduct?.price}</p>
-                <p className="text-sm text-gray-400 mb-4">
-                  Escaneie o QR Code acima com o app do seu banco ou copie o código PIX
-                </p>
-              </div>
+              {paymentStatus !== "approved" && (
+                <div className="text-white mb-4">
+                  <p className="text-lg font-semibold mb-2">Valor: {selectedProduct?.price}</p>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Escaneie o QR Code acima com o app do seu banco ou copie o código PIX
+                  </p>
+                </div>
+              )}
 
-              {/* Código PIX Real */}
-              {pixData.qr_code && (
+              {/* Código PIX - só mostrar se não foi aprovado */}
+              {paymentStatus !== "approved" && pixData.qr_code && (
                 <div className="bg-gray-800 p-3 rounded-lg mb-4">
                   <p className="text-xs text-gray-400 mb-1">Código PIX:</p>
                   <p className="text-xs text-white break-all font-mono">{pixData.qr_code}</p>
@@ -941,21 +1049,30 @@ export default function Component() {
               )}
 
               <div className="flex gap-2">
+                {paymentStatus !== "approved" && (
+                  <Button
+                    onClick={() => navigator.clipboard.writeText(pixData.qr_code)}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Copiar Código
+                  </Button>
+                )}
                 <Button
-                  onClick={() => navigator.clipboard.writeText(pixData.qr_code)}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={closePixModal}
+                  className={`${paymentStatus === "approved" ? "w-full" : "flex-1"} bg-gray-600 hover:bg-gray-700 text-white`}
                 >
-                  Copiar Código
-                </Button>
-                <Button onClick={closePixModal} className="flex-1 bg-gray-600 hover:bg-gray-700 text-white">
-                  Fechar
+                  {paymentStatus === "approved" ? "Finalizar" : "Fechar"}
                 </Button>
               </div>
 
               <p className="text-xs text-gray-400 mt-4">
                 ID do Pagamento: {pixData.payment_id}
-                <br />
-                Após o pagamento, você receberá uma confirmação automática
+                {paymentStatus !== "approved" && (
+                  <>
+                    <br />
+                    Após o pagamento, você receberá uma confirmação automática
+                  </>
+                )}
               </p>
             </div>
           </div>
