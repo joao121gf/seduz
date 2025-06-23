@@ -187,37 +187,16 @@ export default function Component() {
       console.log("📧 Enviando email com EmailJS...")
 
       const templateParams = {
-        to_name: "SEDUZ Admin",
-        from_name: orderDetails.nome,
-        customer_name: orderDetails.nome,
-        customer_email: orderDetails.email,
-        customer_phone: orderDetails.whatsapp,
-        customer_cpf: orderDetails.cpf,
-        customer_address: `CEP: ${orderDetails.cep}, ${orderDetails.cidade}/${orderDetails.estado}, Nº ${orderDetails.numeroCasa}`,
-        product_name: orderDetails.produto,
-        product_price: orderDetails.preco,
-        order_id: orderDetails.pedidoId,
-        payment_id: orderDetails.paymentId || "Aguardando pagamento",
-        message: `🛒 NOVO PEDIDO RECEBIDO!
-
-📦 Produto: ${orderDetails.produto}
-💰 Valor: ${orderDetails.preco}
-
-👤 DADOS DO CLIENTE:
-Nome: ${orderDetails.nome}
-Email: ${orderDetails.email}
-WhatsApp: ${orderDetails.whatsapp}
-CPF: ${orderDetails.cpf}
-
-📍 ENDEREÇO DE ENTREGA:
-CEP: ${orderDetails.cep}
-Cidade: ${orderDetails.cidade}/${orderDetails.estado}
-Número: ${orderDetails.numeroCasa}
-
-🔢 ID do Pedido: ${orderDetails.pedidoId}
-💳 ID do Pagamento: ${orderDetails.paymentId || "Aguardando pagamento"}
-
-Status: Aguardando confirmação do pagamento PIX`,
+        pedido_id: orderDetails.pedidoId,
+        produto_nome: orderDetails.produto,
+        produto_preco: orderDetails.preco,
+        cliente_nome: orderDetails.nome,
+        cliente_whatsapp: orderDetails.whatsapp,
+        cliente_cep: orderDetails.cep,
+        cliente_estado: orderDetails.estado,
+        cliente_cidade: orderDetails.cidade,
+        cliente_numero: orderDetails.numeroCasa,
+        data_pedido: new Date().toLocaleString("pt-BR"),
       }
 
       console.log("📋 Template params:", templateParams)
@@ -246,7 +225,7 @@ Status: Aguardando confirmação do pagamento PIX`,
     }
 
     setIsSubmitting(true)
-    setSubmitMessage("🔄 Processando pedido...")
+    setSubmitMessage("💳 Gerando PIX...")
 
     try {
       const pedidoId = `PED-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -267,13 +246,14 @@ Status: Aguardando confirmação do pagamento PIX`,
       }
 
       // 1. PRIMEIRO: Enviar email de notificação
-      setSubmitMessage("📧 Enviando dados do pedido...")
-      const emailSuccess = await sendEmailNotification(orderDetails)
+      // Removido conforme atualização
+      // setSubmitMessage("📧 Enviando dados do pedido...")
+      // const emailSuccess = await sendEmailNotification(orderDetails)
 
-      if (!emailSuccess) {
-        setSubmitMessage("⚠️ Aviso: Email não foi enviado, mas continuando com o pedido...")
-        // Continuar mesmo se o email falhar
-      }
+      // if (!emailSuccess) {
+      //   setSubmitMessage("⚠️ Aviso: Email não foi enviado, mas continuando com o pedido...")
+      //   // Continuar mesmo se o email falhar
+      // }
 
       // 2. SEGUNDO: Gerar PIX
       setSubmitMessage("💳 Gerando PIX...")
@@ -307,14 +287,15 @@ Status: Aguardando confirmação do pagamento PIX`,
 
       if (pixResult.success && pixResult.payment_id) {
         // 3. TERCEIRO: Enviar email com ID do pagamento (opcional)
-        if (emailSuccess) {
-          orderDetails.paymentId = pixResult.payment_id
-          await sendEmailNotification({
-            ...orderDetails,
-            message:
-              orderDetails.message + `\n\n✅ PIX gerado com sucesso!\n💳 ID do Pagamento: ${pixResult.payment_id}`,
-          })
-        }
+        // Removido conforme atualização
+        // if (emailSuccess) {
+        //   orderDetails.paymentId = pixResult.payment_id
+        //   await sendEmailNotification({
+        //     ...orderDetails,
+        //     message:
+        //       orderDetails.message + `\n\n✅ PIX gerado com sucesso!\n💳 ID do Pagamento: ${pixResult.payment_id}`,
+        //   })
+        // }
 
         setPixData({
           qr_code: pixResult.qr_code,
@@ -367,7 +348,7 @@ Status: Aguardando confirmação do pagamento PIX`,
       {
         id: 1,
         name: "Noite Sublime",
-        price: "R$ 0,20",
+        price: "R$ 59,90",
         rating: 4.9,
         reviews: 527,
         image: "/1.jpg?height=300&width=400",
@@ -394,7 +375,7 @@ Status: Aguardando confirmação do pagamento PIX`,
       {
         id: 3,
         name: "Conjunto Emily Sem Bojo",
-        price: "R$ 47,90",
+        price: "R$ 0,20",
         rating: 4.7,
         reviews: 756,
         image: "/lange2.jpg?height=300&width=400",
@@ -851,16 +832,6 @@ Status: Aguardando confirmação do pagamento PIX`,
                 </div>
               )}
 
-              {/* Indicador de email enviado */}
-              {emailSent && (
-                <div className="mb-4 p-3 bg-green-900/50 rounded-lg text-center">
-                  <div className="flex items-center justify-center gap-2 text-green-300">
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm">Email enviado com sucesso!</span>
-                  </div>
-                </div>
-              )}
-
               <div className="space-y-4">
                 <input
                   type="text"
@@ -1120,3 +1091,4 @@ Status: Aguardando confirmação do pagamento PIX`,
     </div>
   )
 }
+</div>
