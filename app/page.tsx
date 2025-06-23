@@ -375,7 +375,7 @@ export default function Component() {
       {
         id: 3,
         name: "Conjunto Emily Sem Bojo",
-        price: "R$ 0,20",
+        price: "R$ 0,21",
         rating: 4.7,
         reviews: 756,
         image: "/lange2.jpg?height=300&width=400",
