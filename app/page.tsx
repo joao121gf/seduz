@@ -330,7 +330,7 @@ export default function Component() {
       {
         id: 1,
         name: "Noite Sublime",
-        price: "R$ 0,21",
+        price: "R$ 0,10",
         rating: 4.9,
         reviews: 527,
         image: "/1.jpg?height=300&width=400",
@@ -967,9 +967,10 @@ export default function Component() {
               {isPolling && paymentStatus !== "approved" && (
                 <div className="mb-4 p-3 bg-blue-900/50 border border-blue-500 rounded-lg">
                   <div className="flex items-center justify-center gap-2 text-blue-300">
-                    <div className="animate-spin w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full"></div>
-                    <span className="text-sm">Aguardando confirmação do pagamento...</span>
+                    <div className="animate-spin w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full flex-shrink-0"></div>
+                    <span className="text-sm font-medium">Aguardando confirmação do pagamento...</span>
                   </div>
+                  <div className="mt-2 text-xs text-blue-400">Verificando automaticamente a cada 3 segundos...</div>
                 </div>
               )}
 
