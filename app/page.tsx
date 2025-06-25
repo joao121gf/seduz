@@ -330,7 +330,7 @@ export default function Component() {
       {
         id: 1,
         name: "Noite Sublime",
-        price: "R$ 0,10",
+        price: "R$ 32,10",
         rating: 4.9,
         reviews: 527,
         image: "/1.jpg?height=300&width=400",
