@@ -345,14 +345,14 @@ export default function Component() {
       },
       {
         id: 2,
-        name: "Mark Prótese Curvada",
-        price: "R$ 62,90",
+        name: "VibraLux Vibrador Recarregável",
+        price: "R$ 48,99",
         rating: 4.8,
         reviews: 889,
-        image: "/1pb2.jpg?height=300&width=400",
+        image: "/vibr.png?height=300&width=400",
         description:
-          "A prótese realística é ideal para quem deseja explorar novas sensações e aproveitar cada momento com mais intensidade durante a penetração.",
-        features: ["Toque macio", "Firme e flexível", "Prazer inesquecível", "Penetrações intensas"],
+          "O Toque de Fogo é um vibrador recarregável ideal para estimular o clitóris com potência e discrição. Compacto, silencioso e com múltiplas vibrações para prazeres intensos.",
+        features: ["10 modos de vibração", "Toque suave e confortável", "Recarregável via USB", "Estimulação intensa do clitóris"],
       },
       {
         id: 3,
