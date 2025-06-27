@@ -636,7 +636,14 @@ export default function Component() {
                     <div className="flex items-center mb-3">
                       <div className="flex items-center">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          <Star 
+                            key={i} 
+                            className={`w-4 h-4 ${
+                              index === 1 && i === 4 
+                                ? "fill-gray-400 text-gray-400" 
+                                : "fill-yellow-400 text-yellow-400"
+                            }`} 
+                          />
                         ))}
                       </div>
                       <span className="text-gray-400 ml-2">({product.reviews})</span>
