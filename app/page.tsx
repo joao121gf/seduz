@@ -430,7 +430,7 @@ export default function Component() {
         name: "Xana Loka Gel Excitante",
         price: "R$ 19,90",
         rating: 4.7,
-        reviews: 756,
+        reviews: 1256,
         image: "/XL.jpg?height=300&width=400",
         description: "Xana Loka é um gel excitante feminino perfeito para mulheres que procuram um excitante de qualidade. ",
         features: [
