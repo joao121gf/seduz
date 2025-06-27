@@ -1499,7 +1499,7 @@ body {
 .from-black\/50 {
   --tw-gradient-from: rgb(0 0 0 / 0.5) var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position);
-  --tw-gradient-stops: rgb(53 2 2 / 72%), var(--tw-gradient-to);
+  --tw-gradient-stops: rgba(53, 2, 2, 0), var(--tw-gradient-to);
 }
 .from-black\/70 {
   --tw-gradient-from: rgb(0 0 0 / 0.7) var(--tw-gradient-from-position);
@@ -3296,7 +3296,7 @@ body {
   }
 
   .md\:h-64 {
-    height: 18rem;
+    height: 22rem;
   }
   \ .md\:w-\[var$$--radix-navigation-menu-viewport-width$$\] {
     width: var(--radix-navigation-menu-viewport-width);
